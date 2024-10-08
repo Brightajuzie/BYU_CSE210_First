@@ -2,107 +2,79 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ScriptureMemorizer
+class Scripture
 {
-    public class Scripture
+    public ScriptureReference Reference { get; }
+    public string Text { get; private set; }
+    private HashSet<string> HiddenWords { get; }
+
+    public Scripture(string reference, string text)
     {
-        public ScriptureReference Reference { get; }
-        public List<Word> Words { get; private set; }
+        Reference = new ScriptureReference(reference);
+        Text = text;
+        HiddenWords = new HashSet<string>();
+    }
 
-        public Scripture(ScriptureReference reference, string text)
+    public void HideRandomWord()
+    {
+        var words = Text.Split();
+        if (words.Length > 0)
         {
-            Reference = reference;
-            Words = text.Split().Select(word => new Word(word)).ToList();
-        }
-
-        public void HideRandomWords(int count)
-        {
-            var random = new Random();
-            for (int i = 0; i < count; i++)
+            var randomIndex = Random.Shared.Next(words.Length);
+            var word = words[randomIndex];
+            if (!HiddenWords.Contains(word))
             {
-                Words[random.Next(Words.Count)].IsHidden = true;
+                HiddenWords.Add(word);
+                Text = Text.Replace(word, "_____");
             }
         }
-
-        public override string ToString()
-        {
-            return $"{Reference}\n{string.Join(" ", Words.Select(w => w.ToString()))}";
-        }
     }
 
-    public class ScriptureReference
+    public bool IsCompletelyHidden() => HiddenWords.Count == Text.Split().Length;
+
+    public void Display() => Console.WriteLine($"{Reference}: {Text}");
+}
+
+class ScriptureReference
+{
+    public string Book { get; }
+    public int Chapter { get; }
+    public int StartVerse { get; }
+    public int EndVerse { get; }
+
+    public ScriptureReference(string reference)
     {
-        public string Book { get; }
-        public int Chapter { get; }
-        public int? StartVerse { get; }
-        public int? EndVerse { get; }
+        var parts = reference.Split();
+        Book = parts[0];
+        Chapter = int.Parse(parts[1]);
+        StartVerse = int.Parse(parts[2]);
+        EndVerse = parts.Length > 3 ? int.Parse(parts[4]) : StartVerse;
+    }
 
-        public ScriptureReference(string reference)
+    public override string ToString() => EndVerse == StartVerse ? $"{Book} {Chapter}:{StartVerse}" : $"{Book} {Chapter}:{StartVerse}-{EndVerse}";
+}
+
+class Program
+{
+    static void Main()
+    {
+        var scriptureText = "John 3:16 For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.";
+        var scripture = new Scripture(scriptureText, "John 3:16");
+
+        while (true)
         {
-            var parts = reference.Split();
-            Book = parts[0];
-            Chapter = int.Parse(parts[1]);
+            scripture.Display();
+            Console.Write("Press Enter to continue or type 'quit' to exit: ");
+            var input = Console.ReadLine();
 
-            if (parts.Length > 2)
+            if (input?.ToLower() == "quit")
+                break;
+
+            scripture.HideRandomWord();
+            if (scripture.IsCompletelyHidden())
             {
-                StartVerse = int.Parse(parts[2]);
-                if (parts.Length > 3)
-                {
-                    EndVerse = int.Parse(parts[3]);
-                }
-            }
-        }
-
-        public override string ToString()
-        {
-            return $"{Book} {Chapter}:{StartVerse ?? 1}-{EndVerse?.ToString() ?? StartVerse?.ToString()}";
-        }
-    }
-
-    public class Word
-    {
-        public string Text { get; }
-        public bool IsHidden { get; set; }
-
-        public Word(string text)
-        {
-            Text = text;
-        }
-
-        public override string ToString()
-        {
-            return IsHidden ? "-----" : Text;
-        }
-    }
-
-    public class Program
-    {
-        static void Main()
-        {
-            Console.WriteLine("Enter a scripture reference (e.g., John 3:16):");
-            var referenceText = Console.ReadLine();
-            var scriptureReference = new ScriptureReference(referenceText);
-
-            Console.WriteLine("Enter the scripture text:");
-            var scriptureText = Console.ReadLine();
-            var scripture = new Scripture(scriptureReference, scriptureText);
-
-            Console.Clear();
-            Console.WriteLine(scripture);
-
-            while (true)
-            {
-                Console.WriteLine("Press Enter to hide more words, or type 'quit' to exit.");
-                var input = Console.ReadLine();
-
-                if (input == "quit")
-                {
-                    break;
-                }
-
-                scripture.HideRandomWords(3);
-                Console.Clear();
-                Console.WriteLine(scripture);
+                Console.WriteLine("All words are hidden!");
+                break;
             }
         }
     }
